@@ -123,6 +123,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Redis Reactive (for token blacklist verification) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
     </dependencies>
 	<dependencyManagement>
 		<dependencies>

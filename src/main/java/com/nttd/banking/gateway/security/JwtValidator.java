@@ -26,6 +26,7 @@ import java.util.List;
 public class JwtValidator {
 
     private final JwksKeyProvider jwksKeyProvider;
+    private final TokenBlacklistService blacklistService;
 
     /**
      * Validates a JWT token and extracts claims.
@@ -42,6 +43,7 @@ public class JwtValidator {
 
     /**
      * Parses and validates the JWT token using the public key.
+     * After signature validation, checks if token is blacklisted (revoked).
      *
      * @param token JWT token string
      * @param publicKey RSA public key
@@ -55,8 +57,19 @@ public class JwtValidator {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            log.debug("Token validated successfully for user: {}", claims.getSubject());
-            return Mono.just(claims);
+            log.debug("Token signature validated successfully for user: {}", claims.getSubject());
+
+            // Check if token is blacklisted (revoked by logout)
+            String jti = claims.getId();
+            return blacklistService.isBlacklisted(jti)
+                    .flatMap(isBlacklisted -> {
+                        if (Boolean.TRUE.equals(isBlacklisted)) {
+                            log.warn("Token with JTI {} has been revoked", jti);
+                            return Mono.error(new AuthenticationException("Token revoked"));
+                        }
+                        log.debug("Token validated successfully for user: {}", claims.getSubject());
+                        return Mono.just(claims);
+                    });
 
         } catch (ExpiredJwtException e) {
             log.warn("Token expired for user: {}", e.getClaims().getSubject());
